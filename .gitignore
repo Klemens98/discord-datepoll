@@ -1,0 +1,6 @@
+node_modules/
+.env
+data/polls.json
+data/sessions.json
+bot.out.log
+bot.err.log

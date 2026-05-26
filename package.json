@@ -1,0 +1,19 @@
+{
+  "name": "datepoll",
+  "version": "1.0.0",
+  "description": "Discord bot for creating multi-choice date polls from a calendar interface.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js",
+    "check-token": "node src/check-token.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
