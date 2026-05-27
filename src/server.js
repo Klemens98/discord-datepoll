@@ -82,6 +82,20 @@ export function createApp(deps) {
     return c.json({ selectedDates: [...session.selectedDates] });
   });
 
+  app.post("/api/sessions/:token/publish", requireSession, async (c) => {
+    const session = c.get("session");
+    try {
+      const { channelId, messageId } = await deps.publishPoll(session);
+      deps.sessionsApi.delete(session.id);
+      return c.json({ ok: true, channelId, messageId });
+    } catch (error) {
+      if (error.code === 50001 || error.code === 50013) {
+        return c.json({ error: "missing_permissions" }, 403);
+      }
+      return c.json({ error: "publish_failed", detail: String(error.message ?? error) }, 500);
+    }
+  });
+
   app.notFound((c) => c.json({ error: "not_found" }, 404));
 
   return app;

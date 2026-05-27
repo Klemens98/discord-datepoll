@@ -208,3 +208,79 @@ test("POST /api/sessions/:token/toggle rejects missing dateKey", async () => {
   }));
   assert.equal(res.status, 400);
 });
+
+test("POST /api/sessions/:token/publish posts the poll and deletes the session", async () => {
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "C",
+    title: "T", selectedDates: new Set(["2026-06-01"]), lastActiveAt: Date.now()
+  };
+  const deleted = [];
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: {
+      getByToken: () => session,
+      save: () => {},
+      delete: (id) => deleted.push(id)
+    },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "owner-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const deps = app.fakeDepsForTest ?? null;
+  // The real publishPoll is injected via deps; verify by overriding through closure:
+  // We instead use a separate factory call:
+  const finalApp = createApp({
+    ...fakeDeps(),
+    sessionsApi: {
+      getByToken: () => session,
+      save: () => {},
+      delete: (id) => deleted.push(id)
+    },
+    fetchImpl: async (url) => {
+      if (url === "https://discord.com/api/v10/users/@me") {
+        return new Response(JSON.stringify({ id: "owner-1" }), {
+          status: 200, headers: { "Content-Type": "application/json" }
+        });
+      }
+      throw new Error("unexpected fetch: " + url);
+    },
+    publishPoll: async (s) => {
+      assert.equal(s, session);
+      return { channelId: "C", messageId: "M" };
+    }
+  });
+  const res = await finalApp.fetch(new Request("http://test/api/sessions/tok/publish", {
+    method: "POST",
+    headers: { Authorization: "Bearer t" }
+  }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(body, { ok: true, channelId: "C", messageId: "M" });
+  assert.deepEqual(deleted, ["s1"]);
+});
+
+test("POST /api/sessions/:token/publish returns 403 missing_permissions on 50001/50013", async () => {
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "C",
+    title: "T", selectedDates: new Set(["2026-06-01"]), lastActiveAt: Date.now()
+  };
+  const app = createApp({
+    ...fakeDeps(),
+    sessionsApi: { getByToken: () => session, save: () => {}, delete: () => {} },
+    fetchImpl: async () => new Response(JSON.stringify({ id: "owner-1" }), {
+      status: 200, headers: { "Content-Type": "application/json" }
+    }),
+    publishPoll: async () => {
+      const e = new Error("permission");
+      e.code = 50013;
+      throw e;
+    }
+  });
+  const res = await app.fetch(new Request("http://test/api/sessions/tok/publish", {
+    method: "POST",
+    headers: { Authorization: "Bearer t" }
+  }));
+  assert.equal(res.status, 403);
+  const body = await res.json();
+  assert.equal(body.error, "missing_permissions");
+});
