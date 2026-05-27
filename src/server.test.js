@@ -136,3 +136,75 @@ test("GET /api/sessions/:token returns title and selectedDates for the owner", a
   assert.equal(body.title, "Movie Night");
   assert.deepEqual(body.selectedDates.sort(), ["2026-06-01", "2026-06-02"]);
 });
+
+test("POST /api/sessions/:token/toggle adds a missing date", async () => {
+  const saved = [];
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "c", title: "T",
+    selectedDates: new Set(), lastActiveAt: Date.now()
+  };
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: {
+      getByToken: () => session,
+      save: () => saved.push("save"),
+      delete: () => {}
+    },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "owner-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const res = await app.fetch(new Request("http://test/api/sessions/tok/toggle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+    body: JSON.stringify({ dateKey: "2026-06-15" })
+  }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(body.selectedDates, ["2026-06-15"]);
+  assert.ok(session.selectedDates.has("2026-06-15"));
+  assert.equal(saved.length, 1);
+});
+
+test("POST /api/sessions/:token/toggle removes a previously-selected date", async () => {
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "c", title: "T",
+    selectedDates: new Set(["2026-06-15"]), lastActiveAt: Date.now()
+  };
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: { getByToken: () => session, save: () => {}, delete: () => {} },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "owner-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const res = await app.fetch(new Request("http://test/api/sessions/tok/toggle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+    body: JSON.stringify({ dateKey: "2026-06-15" })
+  }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(body.selectedDates, []);
+  assert.ok(!session.selectedDates.has("2026-06-15"));
+});
+
+test("POST /api/sessions/:token/toggle rejects missing dateKey", async () => {
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "c", title: "T",
+    selectedDates: new Set(), lastActiveAt: Date.now()
+  };
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: { getByToken: () => session, save: () => {}, delete: () => {} },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "owner-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const res = await app.fetch(new Request("http://test/api/sessions/tok/toggle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer t" },
+    body: JSON.stringify({})
+  }));
+  assert.equal(res.status, 400);
+});

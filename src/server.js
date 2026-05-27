@@ -66,6 +66,22 @@ export function createApp(deps) {
     });
   });
 
+  app.post("/api/sessions/:token/toggle", requireSession, async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const dateKey = body.dateKey;
+    if (typeof dateKey !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      return c.json({ error: "missing_or_invalid_dateKey" }, 400);
+    }
+    const session = c.get("session");
+    if (session.selectedDates.has(dateKey)) {
+      session.selectedDates.delete(dateKey);
+    } else {
+      session.selectedDates.add(dateKey);
+    }
+    deps.sessionsApi.save();
+    return c.json({ selectedDates: [...session.selectedDates] });
+  });
+
   app.notFound((c) => c.json({ error: "not_found" }, 404));
 
   return app;
