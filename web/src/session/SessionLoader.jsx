@@ -10,6 +10,7 @@ import {
 export function SessionLoader({ children }) {
   const { sessionToken, accessToken, status } = useDiscord();
   const [state, setState] = useState({ phase: "loading", session: null, error: null });
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     if (status !== "ready") return;
@@ -33,13 +34,20 @@ export function SessionLoader({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [status, sessionToken, accessToken]);
+  }, [status, sessionToken, accessToken, retryNonce]);
 
   if (state.phase === "loading") return <p>Loading calendar…</p>;
   if (state.phase === "expired") return <ExpiredScreen />;
   if (state.phase === "forbidden") return <ForbiddenScreen />;
   if (state.phase === "network") {
-    return <NetworkErrorScreen onRetry={() => setState({ phase: "loading", session: null, error: null })} />;
+    return (
+      <NetworkErrorScreen
+        onRetry={() => {
+          setState({ phase: "loading", session: null, error: null });
+          setRetryNonce((n) => n + 1);
+        }}
+      />
+    );
   }
   return children({ session: state.session, setSession: (s) => setState({ phase: "ready", session: s, error: null }) });
 }
