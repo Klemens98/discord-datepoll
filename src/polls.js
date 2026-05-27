@@ -1,4 +1,3 @@
-import { EmbedBuilder } from "discord.js";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -137,32 +136,6 @@ export function serializePoll(poll) {
         .map(([userId]) => userId)
     }))
   };
-}
-
-export function createPollEmbed(poll) {
-  const counts = new Map(poll.dates.map((key) => [key, 0]));
-
-  for (const selectedDates of poll.votes.values()) {
-    for (const key of selectedDates) {
-      if (counts.has(key)) {
-        counts.set(key, counts.get(key) + 1);
-      }
-    }
-  }
-
-  const lines = poll.dates.map((key) => {
-    const voters = [...poll.votes.entries()]
-      .filter(([, selectedDates]) => selectedDates.has(key))
-      .map(([userId]) => `<@${userId}>`);
-    const voterText = voters.length > 0 ? ` - ${voters.join(", ")}` : "";
-    return `**${dateLabel(key)}**: ${counts.get(key)}${voterText}`;
-  });
-
-  return new EmbedBuilder()
-    .setTitle(poll.title)
-    .setDescription(lines.join("\n"))
-    .setFooter({ text: "Select every date that works for you." })
-    .setColor(0x2f855a);
 }
 
 function loadPolls() {
