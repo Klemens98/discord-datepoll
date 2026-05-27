@@ -1,23 +1,22 @@
 import "dotenv/config";
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   Client,
-  EmbedBuilder,
   Events,
   GatewayIntentBits,
   InteractionType,
   MessageFlags
 } from "discord.js";
-import { createPollRows, createSetupRows, POLL_PREFIX, SETUP_PREFIX } from "./components.js";
+import { POLL_PREFIX } from "./components.js";
 import { registerCommands } from "./commands.js";
-import { addMonths, getMonthDays, monthLabel, renderCalendar } from "./date-utils.js";
+import { createPollEmbed, createPollRows } from "./voting.js";
 import {
   createPoll,
-  createPollEmbed,
   createSetupSession,
   deleteSetupSession,
   getPoll,
-  getSetupSession,
-  saveSetupSessions,
   setPollMessageTarget,
   setVotes
 } from "./polls.js";
@@ -54,11 +53,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    if (interaction.customId.startsWith(`${SETUP_PREFIX}:`)) {
-      await handleSetupInteraction(interaction);
-      return;
-    }
-
     if (interaction.customId.startsWith(`${POLL_PREFIX}:`)) {
       await handlePollInteraction(interaction);
     }
@@ -75,110 +69,23 @@ async function handleDatePollCommand(interaction) {
     title: interaction.options.getString("title", true)
   });
 
+  const applicationId = process.env.DISCORD_CLIENT_ID;
+  const activityUrl =
+    `https://discord.com/activities/${applicationId}` +
+    `?datepoll_token=${encodeURIComponent(session.token)}`;
+
   await interaction.reply({
-    embeds: [createSetupEmbed(session)],
-    components: createSetupRows(session),
+    content: `**${session.title}** — open the calendar to pick dates:`,
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel("Open Calendar →")
+          .setStyle(ButtonStyle.Link)
+          .setURL(activityUrl)
+      )
+    ],
     flags: MessageFlags.Ephemeral
   });
-}
-
-async function handleSetupInteraction(interaction) {
-  const [, sessionId, action] = interaction.customId.split(":");
-  const session = getSetupSession(sessionId);
-
-  if (!session) {
-    await interaction.reply({
-      content: "This setup session expired. Run `/datepoll` again.",
-      flags: MessageFlags.Ephemeral
-    });
-    return;
-  }
-
-  if (interaction.user.id !== session.userId) {
-    await interaction.reply({
-      content: "Only the person creating this poll can change these dates.",
-      flags: MessageFlags.Ephemeral
-    });
-    return;
-  }
-
-  if (interaction.isStringSelectMenu() && (action === "days-a" || action === "days-b")) {
-    updateSelectedDates(session, action, interaction.values);
-    saveSetupSessions();
-    await interaction.update({
-      embeds: [createSetupEmbed(session)],
-      components: createSetupRows(session)
-    });
-    return;
-  }
-
-  if (action === "cancel") {
-    deleteSetupSession(session.id);
-    await interaction.update({
-      content: "Date poll setup cancelled.",
-      components: []
-    });
-    return;
-  }
-
-  if (action === "prev" || action === "next") {
-    session.monthOffset = action === "prev" ? 0 : 1;
-    session.visibleMonth = addMonths(session.startMonth, session.monthOffset);
-    saveSetupSessions();
-    await interaction.update({
-      embeds: [createSetupEmbed(session)],
-      components: createSetupRows(session)
-    });
-    return;
-  }
-
-  if (action === "publish") {
-    const poll = createPoll({
-      title: session.title,
-      dates: session.selectedDates,
-      createdBy: interaction.user.id
-    });
-    const pollPayload = {
-      embeds: [createPollEmbed(poll)],
-      components: createPollRows(poll)
-    };
-
-    try {
-      if (interaction.channel?.isTextBased()) {
-        const message = await interaction.channel.send(pollPayload);
-        setPollMessageTarget(poll, {
-          channelId: interaction.channel.id,
-          messageId: message.id
-        });
-      } else {
-        const channel = await interaction.client.channels.fetch(session.channelId);
-        if (!channel?.isTextBased()) {
-          throw new Error("Target channel is not text-based.");
-        }
-        const message = await channel.send(pollPayload);
-        setPollMessageTarget(poll, {
-          channelId: channel.id,
-          messageId: message.id
-        });
-      }
-    } catch (error) {
-      if (error.code === 50001 || error.code === 50013) {
-        await interaction.reply({
-          content:
-            "I can't post in that channel. Please grant this bot `View Channel` and `Send Messages`, then try `/datepoll` again.",
-          flags: MessageFlags.Ephemeral
-        });
-        return;
-      }
-      throw error;
-    }
-
-    deleteSetupSession(session.id);
-    await interaction.update({
-      content: "Poll published.",
-      components: []
-    });
-  }
 }
 
 async function handlePollInteraction(interaction) {
@@ -227,33 +134,6 @@ async function refreshPollMessage(poll) {
   } catch (error) {
     console.warn("Could not refresh poll message:", error.message ?? error);
   }
-}
-
-function updateSelectedDates(session, action, selectedValues) {
-  const days = getMonthDays(session.visibleMonth);
-  const chunk = action === "days-b" ? days.slice(25) : days.slice(0, 25);
-  const chunkKeys = new Set(chunk.map((day) => day.key));
-
-  for (const key of chunkKeys) {
-    session.selectedDates.delete(key);
-  }
-
-  for (const key of selectedValues) {
-    session.selectedDates.add(key);
-  }
-}
-
-function createSetupEmbed(session) {
-  return new EmbedBuilder()
-    .setTitle(`Create date poll: ${session.title}`)
-    .setDescription(
-      [
-        `**${monthLabel(session.visibleMonth)}**`,
-        renderCalendar(session.visibleMonth, session.selectedDates),
-        `${session.selectedDates.size} date(s) selected.`
-      ].join("\n")
-    )
-    .setColor(0x3182ce);
 }
 
 async function sendInteractionError(interaction) {
