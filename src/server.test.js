@@ -64,3 +64,75 @@ test("POST /api/discord/token returns 502 when Discord rejects the exchange", as
   }));
   assert.equal(res.status, 502);
 });
+
+function makeAuthedFetch({ sessionsApi, getUserIdImpl }) {
+  return fakeDeps({
+    sessionsApi,
+    fetchImpl: async (url, init) => {
+      if (url === "https://discord.com/api/v10/users/@me") {
+        const auth = init?.headers?.Authorization ?? init?.headers?.authorization;
+        return getUserIdImpl(auth);
+      }
+      throw new Error("unexpected fetch: " + url);
+    }
+  });
+}
+
+test("GET /api/sessions/:token requires Authorization header", async () => {
+  const app = createApp(fakeDeps());
+  const res = await app.fetch(new Request("http://test/api/sessions/some-token"));
+  assert.equal(res.status, 401);
+});
+
+test("GET /api/sessions/:token returns 410 when session expired/missing", async () => {
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: { getByToken: () => undefined, save: () => {}, delete: () => {} },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "user-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const res = await app.fetch(new Request("http://test/api/sessions/dead-token", {
+    headers: { Authorization: "Bearer t" }
+  }));
+  assert.equal(res.status, 410);
+});
+
+test("GET /api/sessions/:token returns 403 when Discord user is not the owner", async () => {
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "c", title: "T",
+    selectedDates: new Set(["2026-06-01"]), lastActiveAt: Date.now()
+  };
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: { getByToken: (t) => t === "tok" ? session : undefined, save: () => {}, delete: () => {} },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "intruder" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const res = await app.fetch(new Request("http://test/api/sessions/tok", {
+    headers: { Authorization: "Bearer t" }
+  }));
+  assert.equal(res.status, 403);
+});
+
+test("GET /api/sessions/:token returns title and selectedDates for the owner", async () => {
+  const session = {
+    id: "s1", token: "tok", userId: "owner-1", channelId: "c", title: "Movie Night",
+    selectedDates: new Set(["2026-06-01", "2026-06-02"]), lastActiveAt: Date.now()
+  };
+  const app = createApp(makeAuthedFetch({
+    sessionsApi: { getByToken: (t) => t === "tok" ? session : undefined, save: () => {}, delete: () => {} },
+    getUserIdImpl: () => new Response(JSON.stringify({ id: "owner-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    })
+  }));
+  const res = await app.fetch(new Request("http://test/api/sessions/tok", {
+    headers: { Authorization: "Bearer t" }
+  }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.title, "Movie Night");
+  assert.deepEqual(body.selectedDates.sort(), ["2026-06-01", "2026-06-02"]);
+});
