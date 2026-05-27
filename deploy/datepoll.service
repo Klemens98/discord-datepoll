@@ -1,0 +1,15 @@
+[Unit]
+Description=DatePoll Discord bot + HTTP API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/datepoll
+EnvironmentFile=/opt/datepoll/.env
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+User=datepoll
+
+[Install]
+WantedBy=multi-user.target
