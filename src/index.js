@@ -126,7 +126,8 @@ async function handleDatePollCommand(interaction) {
   const applicationId = process.env.DISCORD_CLIENT_ID;
   const activityUrl =
     `https://discord.com/activities/${applicationId}` +
-    `?datepoll_token=${encodeURIComponent(session.token)}`;
+    `?datepoll_token=${encodeURIComponent(session.token)}` +
+    `&channel_id=${encodeURIComponent(interaction.channelId)}`;
 
   await interaction.reply({
     content: `**${session.title}** — open the calendar to pick dates:`,
