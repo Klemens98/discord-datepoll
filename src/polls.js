@@ -1,4 +1,5 @@
 import { EmbedBuilder } from "discord.js";
+import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,34 +10,63 @@ const sessions = new Map();
 const DATA_FILE = fileURLToPath(new URL("../data/polls.json", import.meta.url));
 const SESSIONS_FILE = fileURLToPath(new URL("../data/sessions.json", import.meta.url));
 
+export const SESSION_TTL_MS = 60 * 60 * 1000;
+
+function generateSessionToken() {
+  return randomBytes(32).toString("base64url");
+}
+
 loadPolls();
 loadSessions();
 
 export function createSetupSession({ userId, channelId, title }) {
-  const id = crypto.randomUUID();
-  const startMonth = new Date();
-  startMonth.setDate(1);
-  startMonth.setHours(0, 0, 0, 0);
-
   const session = {
-    id,
+    id: crypto.randomUUID(),
+    token: generateSessionToken(),
     userId,
     channelId,
     title,
-    startMonth,
-    visibleMonth: new Date(startMonth),
-    monthOffset: 0,
-    dayPage: 0,
-    selectedDates: new Set()
+    selectedDates: new Set(),
+    lastActiveAt: Date.now()
   };
 
-  sessions.set(id, session);
+  sessions.set(session.id, session);
   saveSessions();
   return session;
 }
 
 export function getSetupSession(id) {
-  return sessions.get(id);
+  const session = sessions.get(id);
+  if (!session) return undefined;
+  if (Date.now() - session.lastActiveAt > SESSION_TTL_MS) {
+    sessions.delete(id);
+    saveSessions();
+    return undefined;
+  }
+  session.lastActiveAt = Date.now();
+  return session;
+}
+
+export function getSetupSessionByToken(token) {
+  for (const session of sessions.values()) {
+    if (session.token === token) {
+      return getSetupSession(session.id);
+    }
+  }
+  return undefined;
+}
+
+export function pruneExpiredSessions() {
+  const cutoff = Date.now() - SESSION_TTL_MS;
+  let removed = 0;
+  for (const [id, session] of sessions) {
+    if (session.lastActiveAt < cutoff) {
+      sessions.delete(id);
+      removed += 1;
+    }
+  }
+  if (removed > 0) saveSessions();
+  return removed;
 }
 
 export function deleteSetupSession(id) {
@@ -161,14 +191,17 @@ function loadSessions() {
   }
 
   const savedSessions = JSON.parse(readFileSync(SESSIONS_FILE, "utf8"));
+  const now = Date.now();
 
   for (const savedSession of savedSessions) {
     sessions.set(savedSession.id, {
-      ...savedSession,
-      startMonth: new Date(savedSession.startMonth),
-      visibleMonth: new Date(savedSession.visibleMonth),
-      dayPage: savedSession.dayPage ?? 0,
-      selectedDates: new Set(savedSession.selectedDates)
+      id: savedSession.id,
+      token: savedSession.token ?? generateSessionToken(),
+      userId: savedSession.userId,
+      channelId: savedSession.channelId,
+      title: savedSession.title,
+      selectedDates: new Set(savedSession.selectedDates),
+      lastActiveAt: savedSession.lastActiveAt ?? now
     });
   }
 }
