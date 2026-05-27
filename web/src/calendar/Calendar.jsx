@@ -4,6 +4,7 @@ import "react-day-picker/style.css";
 import { Summary } from "./Summary.jsx";
 import { toggleDate } from "../api.js";
 import { useDiscord } from "../discord/DiscordProvider.jsx";
+import { PublishButton } from "../publish/PublishButton.jsx";
 
 function toDateKey(date) {
   const y = date.getFullYear();
@@ -58,6 +59,7 @@ export function Calendar({ session, setSession }) {
       />
       {saving && <p className="muted">Saving…</p>}
       {error && <p className="error-inline">{error}</p>}
+      <PublishButton session={session} />
     </div>
   );
 }
