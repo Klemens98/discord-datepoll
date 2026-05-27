@@ -4,3 +4,5 @@ data/polls.json
 data/sessions.json
 bot.out.log
 bot.err.log
+web/node_modules/
+web/dist/
