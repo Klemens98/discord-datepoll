@@ -12,6 +12,13 @@ import {
 import { POLL_PREFIX } from "./components.js";
 import { registerCommands } from "./commands.js";
 import { createPollEmbed, createPollRows } from "./voting.js";
+import { createApp, startServer } from "./server.js";
+import { createTokenCache } from "./discord-auth.js";
+import {
+  getSetupSessionByToken,
+  pruneExpiredSessions,
+  saveSetupSessions
+} from "./polls.js";
 import {
   createPoll,
   createSetupSession,
@@ -37,6 +44,53 @@ const shouldAutoDeployCommands =
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
+
+const tokenCache = createTokenCache();
+
+async function publishPoll(session) {
+  const channel = await client.channels.fetch(session.channelId);
+  if (!channel?.isTextBased?.()) {
+    const error = new Error("Target channel is not text-based.");
+    error.code = 50001;
+    throw error;
+  }
+
+  const poll = createPoll({
+    title: session.title,
+    dates: session.selectedDates,
+    createdBy: session.userId
+  });
+
+  const message = await channel.send({
+    embeds: [createPollEmbed(poll)],
+    components: createPollRows(poll)
+  });
+
+  setPollMessageTarget(poll, { channelId: channel.id, messageId: message.id });
+  return { channelId: channel.id, messageId: message.id };
+}
+
+const app = createApp({
+  clientId: process.env.DISCORD_CLIENT_ID,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET,
+  tokenCache,
+  fetchImpl: globalThis.fetch,
+  sessionsApi: {
+    getByToken: getSetupSessionByToken,
+    save: saveSetupSessions,
+    delete: deleteSetupSession
+  },
+  publishPoll
+});
+
+const apiPort = Number(process.env.API_PORT ?? 3000);
+startServer({ port: apiPort, app });
+console.log(`HTTP API listening on http://127.0.0.1:${apiPort}`);
+
+setInterval(() => {
+  const removed = pruneExpiredSessions();
+  if (removed > 0) console.log(`Pruned ${removed} expired sessions`);
+}, 15 * 60 * 1000);
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}.`);
