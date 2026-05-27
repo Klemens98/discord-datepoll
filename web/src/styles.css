@@ -50,3 +50,27 @@ button.primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calendar h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.muted { color: var(--muted); font-size: 13px; }
+
+.error, .error-inline {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.rdp-root {
+  --rdp-accent-color: var(--accent);
+  --rdp-background-color: transparent;
+  margin: 0;
+}

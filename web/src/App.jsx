@@ -1,6 +1,7 @@
 import React from "react";
 import { DiscordProvider, useDiscord } from "./discord/DiscordProvider.jsx";
 import { SessionLoader } from "./session/SessionLoader.jsx";
+import { Calendar } from "./calendar/Calendar.jsx";
 import { NotInDiscordScreen } from "./errors/ErrorScreens.jsx";
 
 const CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
@@ -12,12 +13,7 @@ function Inner() {
   if (status === "auth_failed") return <p>Couldn't authenticate: {String(error?.message ?? error)}</p>;
   return (
     <SessionLoader>
-      {({ session }) => (
-        <div>
-          <p>Loaded session: <strong>{session.title}</strong></p>
-          <p>{session.selectedDates.length} dates selected (calendar comes next).</p>
-        </div>
-      )}
+      {({ session, setSession }) => <Calendar session={session} setSession={setSession} />}
     </SessionLoader>
   );
 }
@@ -25,7 +21,6 @@ function Inner() {
 export default function App() {
   return (
     <div className="app">
-      <h1>DatePoll</h1>
       <DiscordProvider clientId={CLIENT_ID}>
         <Inner />
       </DiscordProvider>
