@@ -5,6 +5,8 @@ A small Discord bot that lets you create date polls from a Discord-native calend
 ## Docs
 
 - Full installation + server setup guide: [docs/INSTALLATION.md](docs/INSTALLATION.md)
+- Server operations checklist: [docs/OPERATIONS.md](docs/OPERATIONS.md)
+- Agent deploy runbook: [docs/DEPLOY_AGENT.md](docs/DEPLOY_AGENT.md)
 - Token setup guide: [TOKENS.md](TOKENS.md)
 
 ## Setup
