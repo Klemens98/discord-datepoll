@@ -55,6 +55,24 @@ export function getSetupSessionByToken(token) {
   return undefined;
 }
 
+export function getSetupSessionForUser({ userId, channelId = null }) {
+  const now = Date.now();
+  let bestId = null;
+  let bestLastActive = -1;
+
+  for (const session of sessions.values()) {
+    if (session.userId !== userId) continue;
+    if (channelId != null && session.channelId !== channelId) continue;
+    if (now - session.lastActiveAt > SESSION_TTL_MS) continue;
+    if (session.lastActiveAt > bestLastActive) {
+      bestLastActive = session.lastActiveAt;
+      bestId = session.id;
+    }
+  }
+
+  return bestId ? getSetupSession(bestId) : undefined;
+}
+
 export function pruneExpiredSessions() {
   const cutoff = Date.now() - SESSION_TTL_MS;
   let removed = 0;

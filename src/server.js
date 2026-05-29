@@ -58,6 +58,34 @@ export function createApp(deps) {
     await next();
   }
 
+  app.get("/api/sessions/current", async (c) => {
+    const auth = c.req.header("Authorization");
+    if (!auth?.startsWith("Bearer ")) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const accessToken = auth.slice("Bearer ".length).trim();
+    const userId = await getUserIdFromToken({
+      accessToken,
+      cache: deps.tokenCache,
+      fetchImpl: deps.fetchImpl
+    });
+    if (!userId) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    const channelId = c.req.query("channel_id") ?? null;
+    const session = deps.sessionsApi.getForUser({ userId, channelId });
+    if (!session) {
+      return c.json({ error: "no_session" }, 404);
+    }
+
+    return c.json({
+      token: session.token,
+      title: session.title,
+      selectedDates: [...session.selectedDates]
+    });
+  });
+
   app.get("/api/sessions/:token", requireSession, (c) => {
     const session = c.get("session");
     return c.json({

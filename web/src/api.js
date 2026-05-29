@@ -32,6 +32,14 @@ export function getSessionState(token, accessToken) {
   return apiFetch(`/api/sessions/${encodeURIComponent(token)}`, { accessToken });
 }
 
+export function resolveCurrentSession(accessToken, channelId) {
+  const query =
+    channelId != null && channelId !== ""
+      ? `?channel_id=${encodeURIComponent(channelId)}`
+      : "";
+  return apiFetch(`/api/sessions/current${query}`, { accessToken });
+}
+
 export function toggleDate(token, dateKey, accessToken) {
   return apiFetch(`/api/sessions/${encodeURIComponent(token)}/toggle`, {
     method: "POST",

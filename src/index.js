@@ -16,6 +16,7 @@ import { createApp, startServer } from "./server.js";
 import { createTokenCache } from "./discord-auth.js";
 import {
   getSetupSessionByToken,
+  getSetupSessionForUser,
   pruneExpiredSessions,
   saveSetupSessions
 } from "./polls.js";
@@ -77,6 +78,7 @@ const app = createApp({
   fetchImpl: globalThis.fetch,
   sessionsApi: {
     getByToken: getSetupSessionByToken,
+    getForUser: getSetupSessionForUser,
     save: saveSetupSessions,
     delete: deleteSetupSession
   },
@@ -126,8 +128,7 @@ async function handleDatePollCommand(interaction) {
   const applicationId = process.env.DISCORD_CLIENT_ID;
   const activityUrl =
     `https://discord.com/activities/${applicationId}` +
-    `?datepoll_token=${encodeURIComponent(session.token)}` +
-    `&channel_id=${encodeURIComponent(interaction.channelId)}`;
+    `?custom_id=${encodeURIComponent(session.token)}`;
 
   await interaction.reply({
     content: `**${session.title}** — open the calendar to pick dates:`,

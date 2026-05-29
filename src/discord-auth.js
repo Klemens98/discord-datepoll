@@ -10,6 +10,7 @@ export async function exchangeOAuthCode({ code, clientId, clientSecret, fetchImp
   body.set("client_secret", clientSecret);
   body.set("grant_type", "authorization_code");
   body.set("code", code);
+  body.set("redirect_uri", "https://127.0.0.1");
 
   const response = await fetchImpl("https://discord.com/api/v10/oauth2/token", {
     method: "POST",

@@ -25,6 +25,7 @@ test("exchangeOAuthCode POSTs to /api/v10/oauth2/token with correct form body", 
   assert.ok(calls[0].init.body instanceof URLSearchParams);
   assert.equal(calls[0].init.body.get("grant_type"), "authorization_code");
   assert.equal(calls[0].init.body.get("code"), "C0DE");
+  assert.equal(calls[0].init.body.get("redirect_uri"), "https://127.0.0.1");
 });
 
 test("exchangeOAuthCode throws when Discord returns non-2xx", async () => {

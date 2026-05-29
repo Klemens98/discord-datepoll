@@ -5,6 +5,7 @@ import {
   deleteSetupSession,
   getSetupSession,
   getSetupSessionByToken,
+  getSetupSessionForUser,
   pruneExpiredSessions,
   SESSION_TTL_MS
 } from "./polls.js";
@@ -51,6 +52,21 @@ test("getSetupSessionByToken finds the session by its token", () => {
 
 test("getSetupSessionByToken returns undefined for unknown tokens", () => {
   assert.equal(getSetupSessionByToken("not-a-real-token"), undefined);
+});
+
+test("getSetupSessionForUser returns the newest active session for that user and channel", () => {
+  const older = createSetupSession({ userId: "u1", channelId: "c1", title: "older" });
+  older.lastActiveAt = Date.now() - 1000;
+  const newer = createSetupSession({ userId: "u1", channelId: "c1", title: "newer" });
+  const otherChannel = createSetupSession({ userId: "u1", channelId: "c2", title: "other" });
+
+  assert.equal(getSetupSessionForUser({ userId: "u1", channelId: "c1" }), newer);
+  assert.equal(getSetupSessionForUser({ userId: "u1", channelId: "c2" }), otherChannel);
+  assert.equal(getSetupSessionForUser({ userId: "u9", channelId: "c1" }), undefined);
+
+  deleteSetupSession(older.id);
+  deleteSetupSession(newer.id);
+  deleteSetupSession(otherChannel.id);
 });
 
 test("pruneExpiredSessions removes only expired entries", () => {

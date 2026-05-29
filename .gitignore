@@ -1,5 +1,6 @@
 node_modules/
 .env
+docs/VPS_SERVER.md
 data/polls.json
 data/sessions.json
 bot.out.log

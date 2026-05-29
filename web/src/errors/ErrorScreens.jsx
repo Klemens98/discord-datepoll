@@ -9,6 +9,29 @@ export function NotInDiscordScreen() {
   );
 }
 
+export function ConfigErrorScreen() {
+  return (
+    <div className="error">
+      <h2>Activity not configured</h2>
+      <p>
+        The frontend was built without <code>VITE_DISCORD_CLIENT_ID</code> (your Discord Application ID).
+        Set it in <code>web/.env</code> or the repo <code>.env</code> as <code>DISCORD_CLIENT_ID</code>, then rebuild and redeploy.
+      </p>
+    </div>
+  );
+}
+
+export function NoSessionScreen() {
+  return (
+    <div className="error">
+      <h2>No calendar session</h2>
+      <p>
+        Close this panel, run <code>/datepoll</code> again in the channel, then click <strong>Open Calendar →</strong>.
+      </p>
+    </div>
+  );
+}
+
 export function ExpiredScreen() {
   return (
     <div className="error">
