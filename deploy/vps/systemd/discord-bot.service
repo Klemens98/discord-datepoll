@@ -1,0 +1,19 @@
+[Unit]
+Description=DatePoll Discord Bot + HTTP API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=discordbot
+Group=discordbot
+WorkingDirectory=/opt/discord-bot/app
+EnvironmentFile=-/opt/discord-bot/app/.env
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

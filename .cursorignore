@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+web/node_modules/
+.npm/
+**/.yarn/
+**/.pnpm-store/
+
+# Build output
+web/dist/
+dist/
+.vite/
+.output/
+build/
+
+# Secrets — never index
+.env
+.env.*
+!.env.example
+**/config.env
+!**/config.env.example
+**/secrets.env
+**/*.pem
+**/*.key
+
+# Runtime data & logs
+data/
+logs/
+*.log
+**/*.pid
+
+# Git internals
+.git/objects/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~

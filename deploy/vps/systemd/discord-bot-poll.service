@@ -1,0 +1,7 @@
+[Unit]
+Description=DatePoll poll origin/main for updates
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/discord-bot/scripts/poll-main.sh
